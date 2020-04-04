@@ -1,0 +1,245 @@
+// Motor right connections 
+int SpRt = 14;
+int Rt1 = 5;
+int Rt2 = 4;
+// Motor left connections
+int SpLt = 12;
+int Lt1 = 0;
+int Lt2 = 13;
+
+
+int maxspd=10000;
+int spd=0;    //current speed
+void test();
+
+void setup()
+{
+  // Set all the motor control pins to outputs
+  pinMode(SpRt, OUTPUT);
+  pinMode(SpLt, OUTPUT);
+  pinMode(Rt1, OUTPUT);
+  pinMode(Rt2, OUTPUT);
+  pinMode(Lt1, OUTPUT);
+  pinMode(Lt2, OUTPUT);
+  Serial.begin(9600);
+  Serial1.begin(9600);
+  
+  // Turn off motors - Initial state
+  digitalWrite(Rt1, LOW);
+  digitalWrite(Rt2, LOW);
+  digitalWrite(Lt1, LOW);
+  digitalWrite(Lt2, LOW);
+  //
+ // test();
+  //Serial.print("setup complete \n");
+  loop();
+}
+
+void fwd()         //set ahed speed
+{
+   analogWrite(SpRt, spd);
+   analogWrite(SpLt, spd);
+   digitalWrite(Rt1, HIGH);
+   digitalWrite(Rt2, LOW);
+   digitalWrite(Lt1, HIGH);
+   digitalWrite(Lt2, LOW);
+}
+
+void handbrake()
+{
+  analogWrite(SpRt, 0);
+   analogWrite(SpLt, 0);
+   digitalWrite(Rt1, LOW);
+   digitalWrite(Rt2, LOW);
+   digitalWrite(Lt1, LOW);
+   digitalWrite(Lt2, LOW);
+}
+
+void rev()         //reverse
+{
+   analogWrite(SpRt, spd);
+   analogWrite(SpLt, spd);
+   digitalWrite(Rt1, LOW);
+   digitalWrite(Rt2, HIGH);
+   digitalWrite(Lt1, LOW);
+   digitalWrite(Lt2, HIGH);
+}
+
+void turn(bool dir, int rate)     //1=right 0=left rate from [0-100)
+{
+  int spdr=0,spdl=0;
+  if (spd)                  //IF SPEED>0 THEN ONLY SPEED OF MOTORS HAVE TO BE CHANGED NOT DIRECTION
+  {
+     if (dir)               //IF 1,RT       ELSE LT
+  {
+       spdl=(100+rate)*spd;
+       spdr=(100-rate)*spd;
+          }
+      else
+      {
+       spdl=(100-rate)*spd;
+       spdr=(100+rate)*spd;
+      }
+      spdl=spdl>maxspd?maxspd:spdl;     //if any motor speed>max speed then limit the speed
+      spdr=spdr>maxspd?maxspd:spdr;
+      //Serial.print("speeds rt lt \n");
+      //Serial.print(spdr,spdl);
+      analogWrite(SpRt, spdr);
+      analogWrite(SpLt, spdl);
+       digitalWrite(Rt1, HIGH);
+       digitalWrite(Rt2, LOW);
+       digitalWrite(Lt1, HIGH);
+       digitalWrite(Lt2, LOW);
+  }
+  else        //if speed =0
+  {
+           if (dir)
+       {
+        spdl=(rate)*maxspd;       //it will go from 0 to 99% of max speed
+        spdr=(rate)*maxspd;
+       analogWrite(SpRt, spdr);
+        analogWrite(SpLt, spdl);
+         digitalWrite(Rt1, LOW);
+         digitalWrite(Rt2, HIGH);
+         digitalWrite(Lt1, HIGH);
+         digitalWrite(Lt2, LOW);
+        }
+        else
+        {
+          spdl=(rate)*maxspd;
+          spdr=(rate)*maxspd;
+            analogWrite(SpRt, spdr);
+           analogWrite(SpLt, spdl);
+           digitalWrite(Rt1, HIGH);
+           digitalWrite(Rt2, LOW);
+           digitalWrite(Lt1, LOW);
+           digitalWrite(Lt2, HIGH);
+  }
+}
+}
+
+
+//all the testing and stuff starts here
+void directionControl() {
+  analogWrite(SpRt, maxspd);
+  analogWrite(SpLt, maxspd);
+
+  
+  digitalWrite(Rt1, HIGH);
+  digitalWrite(Rt2, LOW);
+  digitalWrite(Lt1, HIGH);
+  digitalWrite(Lt2, LOW);
+  delay(1000);
+  
+  digitalWrite(Rt1, LOW);
+  digitalWrite(Rt2, HIGH);
+  digitalWrite(Lt1, LOW);
+  digitalWrite(Lt2, HIGH);
+  delay(1000);
+  
+  // Turn off motors
+  digitalWrite(Rt1, LOW);
+  digitalWrite(Rt2, LOW);
+  digitalWrite(Lt1, LOW);
+  digitalWrite(Lt2, LOW);
+  delay(1000);
+}
+
+// is a test.......duh
+void speedControl() {
+  // Turn on motors
+  digitalWrite(Rt1, LOW);
+  digitalWrite(Rt2, HIGH);
+  digitalWrite(Lt1, LOW);
+  digitalWrite(Lt2, HIGH);
+  
+  // Accelerate from zero to maximum speed
+  for (int i = 0; i < maxspd; i++) {
+    analogWrite(SpRt, i);
+    analogWrite(SpLt, i);
+    delay(1);
+  }
+  
+  // Decelerate from maximum speed to zero
+  for (int i = maxspd; i >= 0; --i) {
+    analogWrite(SpRt, i);
+    analogWrite(SpLt, i);
+    delay(1);
+  }
+  
+  // Now turn off motors
+  digitalWrite(Rt1, LOW);
+  digitalWrite(Rt2, LOW);
+  digitalWrite(Lt1, LOW);
+  digitalWrite(Lt2, LOW);
+}
+
+
+
+
+
+
+void test() {                   //about 25s of testing
+   //Serial.print("enter loop \n");
+  directionControl();
+   //Serial.print("direction control complete \n");
+  speedControl();
+  // Serial.print("speed control complete \n");
+}
+
+int conv(String a)
+{
+    int buff=0;
+    for (int i = 1; a[i]!='\0'; i++)
+    {
+        buff *= 10;
+        buff += ((int)a[i])-48;
+    }
+    return buff;
+}
+
+void loop()
+{
+ if (Serial.available() > 0)
+  {
+    String data = Serial.readStringUntil('\n');
+    switch (data[0])
+    {
+      case 'w':
+        {spd=conv(data)*100;
+        Serial.print("\n going forward with speed ");
+        Serial.println(spd);
+        fwd();
+        break;}
+      case 'a':
+        {int buff;
+        buff=conv(data);
+        Serial.print("\n turning left with rate ");
+        Serial.println(buff);
+        turn(0,buff);
+        break;}
+      case 's':
+        {spd=conv(data)*100;
+        Serial.print("\n reversing with speed ");
+        Serial.println(spd);
+        rev();
+        break;}
+      case 'd':
+        {int buff1;
+        buff1=conv(data);
+        Serial.print("\n turning right with rate ");
+        Serial.println(buff1);
+        turn(1,buff1);
+        break;}
+      case 'x':
+        {spd=0;
+        Serial.print("\n BREAK BREAK BREAK");
+        fwd();
+        break;}
+    }
+//    Serial.print("You sent me: ");
+//    Serial.println(data);
+//    Serial.println(spd);
+  }
+  
+}
